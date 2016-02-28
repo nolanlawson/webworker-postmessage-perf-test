@@ -2,30 +2,17 @@
 <body>
   <h1>Web Worker perf test</h1>
   <p>Look in the console</p>
+  <pre id="display"></pre>
   <script>
 
-    var STRINGIFY = true;
+    var MAX_MESSAGE_SIZE = 30;
+    var ITERATIONS = 50000;
 
-    var workerScript;
-    if (STRINGIFY) {
-      var workerScript = function () {
-        self.addEventListener('message', function (e) {
-          self.postMessage(JSON.stringify(JSON.parse(e.data)));
-        });
-      };
-    } else {
-      var workerScript = function () {
-        self.addEventListener('message', function (e) {
-          self.postMessage(e.data);
-        });
-      };
-    }
-
-
-    var blob = new Blob(['(' + workerScript.toString() + ')()'], {type: 'application/javascript'});
-    var url = URL.createObjectURL(blob);
-
-    var worker = new Worker(url);
+    var workers = {
+      full: new Worker('full.js'),
+      partial: new Worker('partial.js'),
+      none: new Worker('none.js')
+    };
 
     function createObject(iterations) {
       var obj = {};
@@ -35,19 +22,35 @@
       return obj;
     }
 
-    function test(iterations, log, cb) {
+    function test(iterations, stringification, log, cb) {
       var obj = createObject(iterations);
+      var worker = workers[stringification];
 
       var i = 0;
 
       function listener(e) {
-        var message = STRINGIFY ? JSON.parse(e.data) : e.data;
+        var message;
+        if (stringification === 'full') {
+          message = JSON.parse(e.data);
+        } else if (stringification === 'partial') {
+          message = JSON.parse(e.data.msg);
+        } else {
+          message = e.data;
+        }
         next();
       }
 
       function next() {
-        if (++i <= 10000) {
-          worker.postMessage(STRINGIFY ? JSON.stringify(obj) : obj);
+        if (++i <= ITERATIONS) {
+          var message;
+          if (stringification === 'full') {
+            message = JSON.stringify(obj);
+          } else if (stringification === 'partial') {
+            message = {msg: JSON.stringify(obj)};
+          } else {
+            message = obj;
+          }
+          worker.postMessage(message);
         } else {
           if (log) {
             console.timeEnd('size: ' + iterations);
@@ -62,20 +65,35 @@
         console.time('size: ' + iterations);
       }
       next();
-
     }
 
-    var i = -1;
 
-    function next() {
-      if (++i <= 30) {
-        test(i, true, next);
-      }
-    }
+    var promise = Promise.resolve();
 
-    // throwaway test to warm up worker
-    console.log('Testing...');
-    test(0, false, next);
+    Object.keys(workers).forEach(function (stringification) {
+      promise = promise.then(function () {
+        return new Promise(function (resolve) {
+          var i = -1;
+
+          function next() {
+            if (++i <= MAX_MESSAGE_SIZE) {
+              test(i, stringification, true, next);
+            } else {
+              resolve();
+            }
+          }
+
+          console.log('Testing with stringification:', stringification, '...');
+
+          // throwaway test to warm up worker
+          test(0, stringification, false, next);
+        });
+      });
+    });
+
+    promise = promise.then(function () {
+      document.getElementById('display').innerHTML = 'Done.';
+    });
 
   </script>
 </body>
