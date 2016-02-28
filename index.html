@@ -1,0 +1,82 @@
+<html>
+<body>
+  <h1>Web Worker perf test</h1>
+  <p>Look in the console</p>
+  <script>
+
+    var STRINGIFY = true;
+
+    var workerScript;
+    if (STRINGIFY) {
+      var workerScript = function () {
+        self.addEventListener('message', function (e) {
+          self.postMessage(JSON.stringify(JSON.parse(e.data)));
+        });
+      };
+    } else {
+      var workerScript = function () {
+        self.addEventListener('message', function (e) {
+          self.postMessage(e.data);
+        });
+      };
+    }
+
+
+    var blob = new Blob(['(' + workerScript.toString() + ')()'], {type: 'application/javascript'});
+    var url = URL.createObjectURL(blob);
+
+    var worker = new Worker(url);
+
+    function createObject(iterations) {
+      var obj = {};
+      for (var i = 0; i < iterations; i++) {
+        obj[Math.random().toString()] = Math.random().toString();
+      }
+      return obj;
+    }
+
+    function test(iterations, log, cb) {
+      var obj = createObject(iterations);
+
+      var i = 0;
+
+      function listener(e) {
+        var message = STRINGIFY ? JSON.parse(e.data) : e.data;
+        next();
+      }
+
+      function next() {
+        if (++i <= 10000) {
+          worker.postMessage(STRINGIFY ? JSON.stringify(obj) : obj);
+        } else {
+          if (log) {
+            console.timeEnd('size: ' + iterations);
+          }
+          worker.removeEventListener('message', listener);
+          cb();
+        }
+      }
+
+      worker.addEventListener('message', listener);
+      if (log) {
+        console.time('size: ' + iterations);
+      }
+      next();
+
+    }
+
+    var i = -1;
+
+    function next() {
+      if (++i <= 30) {
+        test(i, true, next);
+      }
+    }
+
+    // throwaway test to warm up worker
+    console.log('Testing...');
+    test(0, false, next);
+
+  </script>
+</body>
+</html>
