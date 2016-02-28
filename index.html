@@ -6,13 +6,34 @@
   <script>
 
     var MAX_MESSAGE_SIZE = 30;
-    var ITERATIONS = 50000;
+    var ITERATIONS = 500;
 
     var workers = {
+      arraybuffer: new Worker('arraybuffer.js'),
       full: new Worker('full.js'),
       partial: new Worker('partial.js'),
       none: new Worker('none.js')
     };
+
+    function arrayBufferToBinaryString(buffer) {
+      var binary = "";
+      var bytes = new Uint8Array(buffer);
+      var length = bytes.byteLength;
+      for (var i = 0; i < length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return binary;
+    }
+
+    function binaryStringToArrayBuffer(bin) {
+      var length = bin.length;
+      var buf = new ArrayBuffer(length);
+      var arr = new Uint8Array(buf);
+      for (var i = 0; i < length; i++) {
+        arr[i] = bin.charCodeAt(i);
+      }
+      return buf;
+    }
 
     function createObject(iterations) {
       var obj = {};
@@ -34,6 +55,8 @@
           message = JSON.parse(e.data);
         } else if (stringification === 'partial') {
           message = JSON.parse(e.data.msg);
+        } else if (stringification === 'arraybuffer') {
+          message = JSON.parse(arrayBufferToBinaryString(e.data));
         } else {
           message = e.data;
         }
@@ -45,12 +68,17 @@
           var message;
           if (stringification === 'full') {
             message = JSON.stringify(obj);
+            worker.postMessage(message);
           } else if (stringification === 'partial') {
             message = {msg: JSON.stringify(obj)};
+            worker.postMessage(message);
+          } else if (stringification === 'arraybuffer') {
+            message = binaryStringToArrayBuffer(JSON.stringify(obj));
+            worker.postMessage(message, [message]);
           } else {
             message = obj;
+            worker.postMessage(message);
           }
-          worker.postMessage(message);
         } else {
           if (log) {
             console.timeEnd('size: ' + iterations);
