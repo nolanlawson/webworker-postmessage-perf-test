@@ -6,10 +6,10 @@
   <script>
 
     var MAX_MESSAGE_SIZE = 30;
-    var ITERATIONS = 500;
+    var ITERATIONS = 50000;
 
     var workers = {
-      arraybuffer: new Worker('arraybuffer.js'),
+      //arraybuffer: new Worker('arraybuffer.js'),
       full: new Worker('full.js'),
       partial: new Worker('partial.js'),
       none: new Worker('none.js')
