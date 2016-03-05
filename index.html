@@ -81,7 +81,16 @@
           }
         } else {
           if (log) {
-            console.timeEnd('size: ' + iterations);
+            performance.measure(
+              stringification + '-size-' + iterations,
+              stringification + '-size-' + iterations + '-start');
+            console.log(
+              'size:',
+              iterations,
+              performance.getEntriesByName(
+                stringification + '-size-' + iterations
+              ).pop().duration
+            );
           }
           worker.removeEventListener('message', listener);
           cb();
@@ -90,7 +99,7 @@
 
       worker.addEventListener('message', listener);
       if (log) {
-        console.time('size: ' + iterations);
+        performance.mark(stringification + '-size-' + iterations + '-start');
       }
       next();
     }
@@ -121,6 +130,21 @@
 
     promise = promise.then(function () {
       document.getElementById('display').innerHTML = 'Done.';
+      console.log(
+        Object.keys(workers).map(function (key) {
+          var results = performance.getEntriesByType('measure')
+            .filter(function (measure) {
+              return measure.name.indexOf(key) > -1;
+            })
+            .map(function (measure) {
+              return measure.duration;
+            });
+          results.unshift(key);
+          console.log(results);
+          return results.join(',');
+        })
+        .join('\n')
+      );
     });
 
   </script>
