@@ -131,8 +131,8 @@
 
     promise = promise.then(function () {
       document.getElementById('display').innerHTML = 'Done.';
-      console.log(
-        Object.keys(workers).map(function (key) {
+
+      var resultsCsv = Object.keys(workers).map(function (key) {
           var results = performance.getEntriesByType('measure')
             .filter(function (measure) {
               return measure.name.indexOf(key) > -1;
@@ -140,12 +140,20 @@
             .map(function (measure) {
               return measure.duration;
             });
+
           results.unshift(key);
-          console.log(results);
+
           return results.join(',');
         })
-        .join('\n')
-      );
+        .join('\n');
+      console.log(resultsCsv);
+
+      var downloadLink = document.createElement('a');
+      downloadLink.download = 'webworker-postmessage-results.csv';
+      downloadLink.href =
+        'data:text/csv;charset=utf-8,' + encodeURI(resultsCsv);
+      downloadLink.innerHTML = 'Download CSV results';
+      document.body.appendChild(downloadLink);
     });
 
   </script>
